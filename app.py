@@ -3,29 +3,31 @@ from datetime import datetime
 import requests
 
 APP = FastAPI()
-TAREFAS=[]
+TAREFAS = []
 
-#Estrutura da tarefa
-"""
-        "id": int,
-        "titulo": str,
-        "descricao": str,
-        "concluida": boll,
-        "criada_em": datetime()
+# Estrutura da tarefa
+""" 
+{
+    "id" -> int,
+    "titulo" -> str,
+    "descricao" -> str,
+    "concluida" -> bool,
+    "criada_em" -> datetime
+}
 """
 
 def criar_tarefa(titulo, descricao):
     return {
-        "id": len(TAREFAS) + 1,
+        "id": len(TAREFAS),
         "titulo": titulo,
         "descricao": descricao,
         "concluida": False,
-        "criada_em": datetime.now()
+        "criada_em": datetime.now().isoformat(timespec="seconds")
     }
 
-
+# GET /tarefas: Lista todas as tarefas (somente id e titulo)
 @APP.get("/tarefas")
-async def listar_tarefas():
+async def tarefas():
     lista_somente_id_titulo = []
 
     for tarefa in TAREFAS:
@@ -36,59 +38,70 @@ async def listar_tarefas():
 
     return lista_somente_id_titulo
 
-@APP.post("/tarefas")
+# POST /tarefas: Cria tarefa
+@APP.post("/tarefas", status_code=201)
 async def post_tarefa(titulo: str, descricao: str):
     global TAREFAS
 
     tarefa_nova = criar_tarefa(titulo, descricao)
+
     TAREFAS.append(tarefa_nova)
 
-    return {
-        "mensagem": "Tarefa criada com sucesso",
-        "tarefa": tarefa_nova
-    }
-
+    return {"mensagem": "OK"}
 
 # GET /tarefas/{id}: Visualizar tarefa específica
 @APP.get("/tarefas/{id}")
 async def tarefa_especifica(id: int):
+    # 1. Selecionar a tarefa de ID recebido como parâmetro
+    # 2. Retornar todos os dados da tarefa
+    # 3. Caso a tarefa não exista, você tem que mostrar que a tarefa não existe
+
     for tarefa in TAREFAS:
-        if tarefa['id'] == id:
+        if id == int(tarefa["id"]):
             return tarefa
-        
-    return {"mensagem": "Tarefa nao existe"}
+
+    return {"mensagem": "Tarefa não existe"}
 
 # PUT /tarefas/{id}: Atualiza tarefa específica
 @APP.put("/tarefas/{id}")
 async def concluir_tarefa(id: int):
+    # 1. Selecionar a tarefa de ID recebido como parâmetro
+    # 2. Marcar a tarefa como concluída
+    # 3. Você deve armazenar o horário de conclusão da tarefa
+    # 4. Caso a tarefa não exista, você tem que mostrar que a tarefa não existe
     for tarefa in TAREFAS:
-        if tarefa['id'] == id and tarefa['concluida'] == False:
+        if id == int(tarefa['id']) and tarefa['concluida'] == False:
             tarefa['concluida'] = True
-            tarefa['concluida_em'] = datetime.now()
+            tarefa['concluida_em'] = datetime.now().isoformat(timespec='seconds')
             titulo = tarefa['titulo']
 
-            resp = requests.post(f"http://localhost:8000/notificar?id={id}&titulo={titulo}")
-
-            print(resp)
-
+            try:
+                resp = requests.post(
+                    f"http://localhost:8000/notificar?id={id}&titulo={titulo}",
+                    timeout=1
+                )
+            except Exception as e:
+                print(e)
             return {"mensagem": "Tarefa atualizada"}
-        
-    return {"mensagem": "Tarefa nao existe"}
+    return {"mensagem": "Tarefa não existe"}
 
 # DELETE /tarefas/{id}: Exclui tarefa
 @APP.delete("/tarefas/{id}")
 async def apagar_tarefa(id: int):
+    # 1. Selecionar a tarefa de ID recebido como parâmetro
+    # 2. Remover tarefa da lista de tarefas
+    # 3. Caso a tarefa não exista, você tem que mostrar que a tarefa não existe
     global TAREFAS
 
-    index = 0
+    indice = 0
     for tarefa in TAREFAS:
-        if tarefa['id'] == id:
+        if id == int(tarefa['id']):
             TAREFAS.pop(indice)
-            return {"mensagem": "Tarefa Removida"}
-        indice += 1
+            return {"mensagem": "Tarefa apagada"}
 
-    return {"mensagem": "Tarefa nao existe"}
+        indice += 1
+    return {"mensagem": "Tarefa não existe"}
 
 @APP.get("/")
 async def index():
-    return {"mensagem": "Ola Mundo"}
+    return {"mensagem": "Olá, mundo!"}
