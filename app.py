@@ -3,6 +3,7 @@
 from datetime import datetime
 from fastapi import FastAPI
 import requests
+from requests.exceptions import ConnectionError
 
 APP = FastAPI()
 TAREFAS = []
@@ -87,7 +88,7 @@ async def concluir_tarefa(id_tarefa: int):
                     f"http://localhost:8000/notificar?id={id}&titulo={titulo}",
                     timeout=1
                 )
-            except TimeoutError as e:
+            except ConnectionError as e:
                 print(e)
 
             return {"mensagem": "Tarefa atualizada"}
