@@ -80,3 +80,10 @@ def teste_tarefas_delete():
 
     resposta = CLIENT.get("/tarefas")
     assert resposta.json() == []
+
+# 2. Criar um teste unitário para verificar se a rota 
+# está produzindo o resultado esperado
+def test_autor():
+    resposta = CLIENT.get("/autor")
+    assert resposta.status_code == 200
+    assert resposta.json() == {"mensagem": "Lucas Felipe"}

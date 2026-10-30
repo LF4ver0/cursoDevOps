@@ -117,3 +117,11 @@ async def apagar_tarefa(id_tarefa: int):
 async def index():
     """ Rota raíz. """
     return {"mensagem": "Olá, mundo!"}
+
+# 1. Implementar uma rota chamada "/autor" que retorna
+# um dicionário no formato {"mensagem": SEU NOME COMPLETO}
+
+@APP.get("/autor")
+async def get_autor():
+    """Retorna autor do projeto. """
+    return {"mensagem": "Lucas Felipe"}
