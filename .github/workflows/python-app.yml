@@ -30,7 +30,7 @@ jobs:
         pip install -r requirements.txt
     - name: Lint with pylint
       run: |
-        pylint api.py
+        pylint app/api.py
     - name: Test with pytest
       run: |
         pytest
