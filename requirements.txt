@@ -8,3 +8,4 @@ sqlmodel
 sqlalchemy
 pymysql
 ruff
+psycopg

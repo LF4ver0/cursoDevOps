@@ -32,7 +32,7 @@ if DATABASE is None:
     sys.exit(1)
 
 ENGINE = create_engine(
-    f"mysql+pymysql://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_ADDRESS}:3306/{DATABASE}"
+    f"postgresql+psycopg://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_ADDRESS}:3306/{DATABASE}"
 )
 
 
