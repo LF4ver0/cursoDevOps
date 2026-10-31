@@ -37,7 +37,7 @@ ENGINE = create_engine(
 
 
 def criar_sessao():
-    """ Função utilitária para criar sessão no banco de dados """
+    """Função utilitária para criar sessão no banco de dados"""
     with Session(ENGINE) as s:
         yield s
 
@@ -46,7 +46,7 @@ SESSAO = Annotated[Session, Depends(criar_sessao)]
 
 
 async def inicializacao(_: FastAPI):
-    """ Função para incialização da API e do banco de dados """
+    """Função para incialização da API e do banco de dados"""
     SQLModel.metadata.create_all(ENGINE)
     yield
 
@@ -147,6 +147,7 @@ async def apagar_tarefa(sessao: SESSAO, id_tarefa: int):
 async def index():
     """Rota raíz."""
     return {"mensagem": "Olá, mundo!"}
+
 
 # 1. Implementar uma rota chamada "/autor" que retorna
 # um dicionário no formato {"mensagem": SEU NOME COMPLETO}

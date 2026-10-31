@@ -28,4 +28,6 @@ def test_tarefa_concluida():
 
     t.finalizar()
     assert t.concluida == True
-    assert t.data_conclusao == datetime.now().astimezone(timezone.utc).replace(microsecond=0)
+    assert t.data_conclusao == datetime.now().astimezone(timezone.utc).replace(
+        microsecond=0
+    )

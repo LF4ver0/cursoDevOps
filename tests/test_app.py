@@ -9,6 +9,7 @@ DATA = None
 DATA_CONCLUSAO = None
 BANCO = create_engine("sqlite:///banco.db", connect_args={"check_same_thread": False})
 
+
 @pytest.fixture(name="sessao")
 def fixture_sessao():
     SQLModel.metadata.create_all(BANCO)
@@ -18,7 +19,8 @@ def fixture_sessao():
 
     SQLModel.metadata.drop_all(BANCO)
 
-@pytest.fixture(name='cliente')
+
+@pytest.fixture(name="cliente")
 def fixture_cliente(sessao: Session):
     def get_sessao():
         return sessao
@@ -29,6 +31,7 @@ def fixture_cliente(sessao: Session):
     yield cliente
 
     APP.dependency_overrides.clear()
+
 
 def test_index(cliente: TestClient):
     resposta = cliente.get("/")
@@ -62,9 +65,10 @@ def test_tarefas_post(cliente: TestClient):
             "data_criacao": DATA,
             "concluida": False,
             "titulo": "teste",
-            "data_conclusao": None
+            "data_conclusao": None,
         }
     ]
+
 
 # 3. Implementar um teste unitário para a rota /tarefas/{id} (PUT)
 def test_tarefas_put(cliente: TestClient):
@@ -81,13 +85,13 @@ def test_tarefas_put(cliente: TestClient):
 
     resposta = cliente.get("/tarefas/1")
     assert resposta.status_code == 200
-    assert resposta.json() ==  {
+    assert resposta.json() == {
         "_id": 1,
         "descricao": "teste",
         "data_criacao": DATA,
         "concluida": True,
         "titulo": "teste",
-        "data_conclusao": str(DATA_CONCLUSAO)
+        "data_conclusao": str(DATA_CONCLUSAO),
     }
 
 
@@ -104,6 +108,7 @@ def test_tarefas_delete(cliente: TestClient):
 
     resposta = cliente.get("/tarefas")
     assert resposta.json() == []
+
 
 # 2. Criar um teste unitário para verificar se a rota
 # está produzindo o resultado esperado
