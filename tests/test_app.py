@@ -1,21 +1,44 @@
-from fastapi.testclient import TestClient
-from app.api import APP
-from datetime import datetime
+import pytest
 
-CLIENT = TestClient(APP)
+from fastapi.testclient import TestClient
+from app.api import APP, criar_sessao
+from datetime import datetime
+from sqlmodel import SQLModel, Session, create_engine
+
 DATA = None
 DATA_CONCLUSAO = None
+BANCO = create_engine("sqlite:///banco.db", connect_args={"check_same_thread": False})
 
+@pytest.fixture(name="sessao")
+def fixture_sessao():
+    SQLModel.metadata.create_all(BANCO)
 
-def test_index():
-    resposta = CLIENT.get("/")
+    with Session(BANCO) as s:
+        yield s
+
+    SQLModel.metadata.drop_all(BANCO)
+
+@pytest.fixture(name='cliente')
+def fixture_cliente(sessao: Session):
+    def get_sessao():
+        return sessao
+
+    APP.dependency_overrides[criar_sessao] = get_sessao
+
+    cliente = TestClient(APP)
+    yield cliente
+
+    APP.dependency_overrides.clear()
+
+def test_index(cliente: TestClient):
+    resposta = cliente.get("/")
     assert resposta.status_code == 200
     assert resposta.json() == {"mensagem": "Olá, mundo!"}
 
 
 # 1. Implementar um teste unitário para a rota /tarefas (GET)
-def test_tarefas_get():
-    resposta = CLIENT.get("/tarefas")
+def test_tarefas_get(cliente: TestClient):
+    resposta = cliente.get("/tarefas")
     assert resposta.status_code == 200
 
     # Testando se a rota retorna uma lista vazia
@@ -23,74 +46,68 @@ def test_tarefas_get():
 
 
 # 2. Implementar um teste unitário para a rota /tarefas (POST)
-def test_tarefas_post():
+def test_tarefas_post(cliente: TestClient):
     global DATA
-    resposta = CLIENT.post("/tarefas?titulo=teste&descricao=teste")
-    DATA = datetime.now().isoformat(timespec="seconds")
+    resposta = cliente.post("/tarefas?titulo=teste&descricao=teste")
+    DATA = datetime.now().replace(microsecond=0).isoformat() + "Z"
 
     assert resposta.status_code == 201
     assert resposta.json() == {"mensagem": "OK"}
 
-    resposta = CLIENT.get("/tarefas")
-    assert resposta.json() == [{"0": "teste"}]
-
-
-def test_tarefa_criada():
-    resposta = CLIENT.get("/tarefas/0")
-    assert resposta.status_code == 200
-    assert resposta.json() == {
-        "_id": 0,
-        "titulo": "teste",
-        "descricao": "teste",
-        "concluida": False,
-        "data_criacao": str(DATA),
-        "data_conclusao": None,
-    }
-
+    resposta = cliente.get("/tarefas")
+    assert resposta.json() == [
+        {
+            "_id": 1,
+            "descricao": "teste",
+            "data_criacao": DATA,
+            "concluida": False,
+            "titulo": "teste",
+            "data_conclusao": None
+        }
+    ]
 
 # 3. Implementar um teste unitário para a rota /tarefas/{id} (PUT)
-def test_tarefas_put():
-    global DATA_CONCLUSAO
-    resposta = CLIENT.put("/tarefas/0")
-    DATA_CONCLUSAO = datetime.now().isoformat(timespec="seconds")
+def test_tarefas_put(cliente: TestClient):
+    # Crio a tarefa
+    resposta = cliente.post("/tarefas?titulo=teste&descricao=teste")
+
+    # Finalizo a tarefa
+    resposta = cliente.put("/tarefas/1")
+    DATA_CONCLUSAO = datetime.now().replace(microsecond=0).isoformat() + "Z"
     assert resposta.json() == {"mensagem": "Tarefa atualizada"}
 
-    resposta = CLIENT.put("/tarefas/1")
+    resposta = cliente.put("/tarefas/0")
     assert resposta.json() == {"mensagem": "Tarefa não existe"}
 
-
-# 4. Implementar um teste unitário para a rota /tarefas/{id} (GET)
-def test_tarefas_get_id():
-    resposta = CLIENT.get("/tarefas/0")
+    resposta = cliente.get("/tarefas/1")
     assert resposta.status_code == 200
-    assert resposta.json() == {
-        "_id": 0,
-        "titulo": "teste",
+    assert resposta.json() ==  {
+        "_id": 1,
         "descricao": "teste",
+        "data_criacao": DATA,
         "concluida": True,
-        "data_criacao": str(DATA),
-        "data_conclusao": str(DATA_CONCLUSAO),
+        "titulo": "teste",
+        "data_conclusao": str(DATA_CONCLUSAO)
     }
-
-    resposta = CLIENT.get("/tarefas/1")
-    assert resposta.json() == {"mensagem": "Tarefa não existe"}
 
 
 # 5. Implementar um teste unitário para a rota /tarefas/{id} (DELETE)
-def test_tarefas_delete():
-    resposta = CLIENT.delete("/tarefas/1")
+def test_tarefas_delete(cliente: TestClient):
+    # Crio a tarefa
+    resposta = cliente.post("/tarefas?titulo=teste&descricao=teste")
+
+    resposta = cliente.delete("/tarefas/0")
     assert resposta.json() == {"mensagem": "Tarefa não existe"}
 
-    resposta = CLIENT.delete("/tarefas/0")
-    assert resposta.json() == {"mensagem": "Tarefa apagada"}
+    resposta = cliente.delete("/tarefas/1")
+    assert resposta.json() == {"mensagem": "Tarefa removida"}
 
-    resposta = CLIENT.get("/tarefas")
+    resposta = cliente.get("/tarefas")
     assert resposta.json() == []
-
 
 # 2. Criar um teste unitário para verificar se a rota
 # está produzindo o resultado esperado
-def test_autor():
-    resposta = CLIENT.get("/autor")
+def test_autor(cliente: TestClient):
+    resposta = cliente.get("/autor")
     assert resposta.status_code == 200
     assert resposta.json() == {"mensagem": "Lucas Felipe"}

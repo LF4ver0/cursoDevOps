@@ -4,9 +4,11 @@ from datetime import datetime, timezone
 from typing import Annotated, List
 import os
 import sys
+
 from fastapi import FastAPI, Depends
 from sqlmodel import SQLModel, Session, create_engine, select
-from app.modelo import Tarefa
+
+from .modelo import Tarefa
 
 DATABASE_USERNAME = os.environ.get("DATABASE_USERNAME")
 DATABASE_PASSWORD = os.environ.get("DATABASE_PASSWORD")
@@ -35,7 +37,7 @@ ENGINE = create_engine(
 
 
 def criar_sessao():
-    """Função que cria sessão do BD"""
+    """ Função utilitária para criar sessão no banco de dados """
     with Session(ENGINE) as s:
         yield s
 
@@ -43,8 +45,8 @@ def criar_sessao():
 SESSAO = Annotated[Session, Depends(criar_sessao)]
 
 
-async def inicializacao(_api: FastAPI):
-    """Cria Instancia do BD"""
+async def inicializacao(_: FastAPI):
+    """ Função para incialização da API e do banco de dados """
     SQLModel.metadata.create_all(ENGINE)
     yield
 
@@ -67,10 +69,11 @@ async def tarefas(sessao: SESSAO) -> List[Tarefa]:
 @APP.post("/tarefas", status_code=201)
 async def post_tarefa(sessao: SESSAO, titulo: str, descricao: str = None):
     """Rota para criar uma tarefa."""
+    data = datetime.now().astimezone(timezone.utc).replace(microsecond=0)
     tarefa_nova = Tarefa(
         titulo=titulo,
         descricao=descricao,
-        data_criacao=datetime.now().astimezone(timezone.utc),
+        data_criacao=data,
     )
 
     sessao.add(tarefa_nova)
@@ -84,10 +87,7 @@ async def post_tarefa(sessao: SESSAO, titulo: str, descricao: str = None):
 @APP.get("/tarefas/{id_tarefa}")
 async def tarefa_especifica(sessao: SESSAO, id_tarefa: int) -> Tarefa:
     """Rota para visualizar uma tarefa específica"""
-    # 1. Selecionar a tarefa de ID recebido como parâmetro
-    # 2. Retornar todos os dados da tarefa
-    # 3. Caso a tarefa não exista, você tem que mostrar que a tarefa não existe
-
+    # select * from tarefas where id == id_tarefa
     regra = select(Tarefa).where(Tarefa.id == id_tarefa)
     resultado = sessao.exec(regra).all()
 
@@ -101,12 +101,12 @@ async def tarefa_especifica(sessao: SESSAO, id_tarefa: int) -> Tarefa:
 @APP.put("/tarefas/{id_tarefa}")
 async def concluir_tarefa(sessao: SESSAO, id_tarefa: int):
     """Rota para concluir uma tarefa."""
-    # 1. Selecionar a tarefa de ID recebido como parâmetro
-    # 2. Marcar a tarefa como concluída
-    # 3. Você deve armazenar o horário de conclusão da tarefa
-    # 4. Caso a tarefa não exista, você tem que mostrar que a tarefa não existe
 
-    regra = select(Tarefa).where(Tarefa.id == id_tarefa and Tarefa.concluida is False)
+    # Atualizar a rota para suportar o SQLModel/Conexão com BD
+    # Usar select para filtrar as tarefas com base no ID e se estiver concluída
+    # Atualizar usando sessao.add, sessao.commit, sessao.refresh
+
+    regra = select(Tarefa).where(Tarefa.id == id_tarefa)
     resultado = sessao.exec(regra).all()
 
     if not resultado:
@@ -116,28 +116,18 @@ async def concluir_tarefa(sessao: SESSAO, id_tarefa: int):
         return {"mensagem": "Tarefa já finalizada"}
 
     resultado[0].finalizar()
+
     sessao.add(resultado[0])
     sessao.commit()
     sessao.refresh(resultado[0])
 
     return {"mensagem": "Tarefa atualizada"}
 
-    # try:
-    #     _ = requests.post(
-    #         f"http://localhost:8000/notificar?id={resultado.id}&titulo={resultado.titulo}",
-    #         timeout=1,
-    #     )
-    # except RequestConnectionError as e:
-    #     print(e)
-
 
 # DELETE /tarefas/{id_tarefa}: Exclui tarefa
 @APP.delete("/tarefas/{id_tarefa}")
 async def apagar_tarefa(sessao: SESSAO, id_tarefa: int):
     """Rota para apagar tarefa."""
-    # 1. Selecionar a tarefa de ID recebido como parâmetro
-    # 2. Remover tarefa da lista de tarefas
-    # 3. Caso a tarefa não exista, você tem que mostrar que a tarefa não existe
 
     regra = select(Tarefa).where(Tarefa.id == id_tarefa)
     resultado = sessao.exec(regra).all()
@@ -145,17 +135,18 @@ async def apagar_tarefa(sessao: SESSAO, id_tarefa: int):
     if not resultado:
         return {"mensagem": "Tarefa não existe"}
 
-    sessao.delete(resultado[0])
+    tarefa = resultado[0]
+
+    sessao.delete(tarefa)
     sessao.commit()
 
-    return {"mensagem": "Tarefa apagada"}
+    return {"mensagem": "Tarefa removida"}
 
 
 @APP.get("/")
 async def index():
     """Rota raíz."""
     return {"mensagem": "Olá, mundo!"}
-
 
 # 1. Implementar uma rota chamada "/autor" que retorna
 # um dicionário no formato {"mensagem": SEU NOME COMPLETO}
