@@ -31,10 +31,13 @@ if DATABASE is None:
     print("DATABASE está faltando")
     sys.exit(1)
 
-ENGINE = create_engine(
-    f"postgresql+psycopg://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_ADDRESS}:3306/{DATABASE}"
+DATABASE_URL = (
+    "postgresql+psycopg://"
+    f"{DATABASE_USERNAME}:{DATABASE_PASSWORD}"
+    f"@{DATABASE_ADDRESS}:3306/{DATABASE}"
 )
 
+ENGINE = create_engine(DATABASE_URL)
 
 def criar_sessao():
     """Função utilitária para criar sessão no banco de dados"""
