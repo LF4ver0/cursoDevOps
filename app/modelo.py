@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from sqlmodel import SQLModel, Field
 
+
 class Tarefa(SQLModel, table=True):
     """Modelo de tarefa"""
 

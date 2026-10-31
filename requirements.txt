@@ -7,3 +7,4 @@ bandit
 sqlmodel
 sqlalchemy
 pymysql
+ruff

@@ -3,10 +3,9 @@
 from datetime import datetime, timezone
 from typing import Annotated, List
 import os
-
+import sys
 from fastapi import FastAPI, Depends
 from sqlmodel import SQLModel, Session, create_engine, select
-from requests.exceptions import ConnectionError as RequestConnectionError
 from app.modelo import Tarefa
 
 DB_USERNAME = os.environ.get("DATABASE_USERNAME")
@@ -16,37 +15,43 @@ DB = os.environ.get("DATABASE")
 
 if DB_USERNAME is None:
     print("DB_USERNAME está faltando")
-    exit(1)
+    sys.exit(1)
 
 if DB_PASSWORD is None:
     print("DB_PASSWORD está faltando")
-    exit(1)
+    sys.exit(1)
 
 if DB_ADDRESS is None:
     print("DB_ADDRESS está faltando")
-    exit(1)
+    sys.exit(1)
 
 if DB is None:
     print("DB está faltando")
-    exit(1)
+    sys.exit(1)
 
 ENGINE = create_engine(
     f"mysql+pymysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_ADDRESS}:3306/{DB}"
-    )
+)
+
 
 def criar_sessao():
     """Função que cria sessão do BD"""
     with Session(ENGINE) as s:
         yield s
 
+
 SESSAO = Annotated[Session, Depends(criar_sessao)]
-async def inicializacao(api: FastAPI):
+
+
+async def inicializacao(_api: FastAPI):
     """Cria Instancia do BD"""
     SQLModel.metadata.create_all(ENGINE)
     yield
 
+
 APP = FastAPI(lifespan=inicializacao)
 TAREFAS = []
+
 
 # GET /tarefas: Lista todas as tarefas (somente id e titulo)
 @APP.get("/tarefas")
@@ -110,7 +115,6 @@ async def concluir_tarefa(sessao: SESSAO, id_tarefa: int):
     if resultado[0].concluida is True:
         return {"mensagem": "Tarefa já finalizada"}
 
-
     resultado[0].finalizar()
     sessao.add(resultado[0])
     sessao.commit()
@@ -125,6 +129,7 @@ async def concluir_tarefa(sessao: SESSAO, id_tarefa: int):
     #     )
     # except RequestConnectionError as e:
     #     print(e)
+
 
 # DELETE /tarefas/{id_tarefa}: Exclui tarefa
 @APP.delete("/tarefas/{id_tarefa}")
@@ -151,9 +156,10 @@ async def index():
     """Rota raíz."""
     return {"mensagem": "Olá, mundo!"}
 
+
 # 1. Implementar uma rota chamada "/autor" que retorna
 # um dicionário no formato {"mensagem": SEU NOME COMPLETO}
 @APP.get("/autor")
 async def autor():
-    """ Rota para retornar o autor da aplicação """
+    """Rota para retornar o autor da aplicação"""
     return {"mensagem": "Lucas Felipe"}
