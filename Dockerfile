@@ -5,7 +5,7 @@ RUN mkdir /app
 WORKDIR /app
 
 #Host -> container
-COPY api.py ./api.py
+COPY /app ./
 COPY requirements.txt ./requirements.txt
 
 RUN pip install --upgrade pip
