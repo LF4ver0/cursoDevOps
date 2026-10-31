@@ -8,29 +8,29 @@ from fastapi import FastAPI, Depends
 from sqlmodel import SQLModel, Session, create_engine, select
 from app.modelo import Tarefa
 
-DB_USERNAME = os.environ.get("DATABASE_USERNAME")
-DB_PASSWORD = os.environ.get("DATABASE_PASSWORD")
-DB_ADDRESS = os.environ.get("DATABASE_ADDRESS")
-DB = os.environ.get("DATABASE")
+DATABASE_USERNAME = os.environ.get("DATABASE_USERNAME")
+DATABASE_PASSWORD = os.environ.get("DATABASE_PASSWORD")
+DATABASE_ADDRESS = os.environ.get("DATABASE_ADDRESS")
+DATABASE = os.environ.get("DATABASE")
 
-if DB_USERNAME is None:
-    print("DB_USERNAME está faltando")
+if DATABASE_USERNAME is None:
+    print("DATABASE_USERNAME está faltando")
     sys.exit(1)
 
-if DB_PASSWORD is None:
-    print("DB_PASSWORD está faltando")
+if DATABASE_PASSWORD is None:
+    print("DATABASE_PASSWORD está faltando")
     sys.exit(1)
 
-if DB_ADDRESS is None:
-    print("DB_ADDRESS está faltando")
+if DATABASE_ADDRESS is None:
+    print("DATABASE_ADDRESS está faltando")
     sys.exit(1)
 
-if DB is None:
-    print("DB está faltando")
+if DATABASE is None:
+    print("DATABASE está faltando")
     sys.exit(1)
 
 ENGINE = create_engine(
-    f"mysql+pymysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_ADDRESS}:3306/{DB}"
+    f"mysql+pymysql://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_ADDRESS}:3306/{DATABASE}"
 )
 
 
