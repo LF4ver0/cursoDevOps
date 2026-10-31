@@ -1,102 +1,145 @@
 """Aplicação para o módulo de extensão DevOps"""
 
-from datetime import datetime
-from fastapi import FastAPI
-import requests
+from datetime import datetime, timezone
+from typing import Annotated, List
+import os
+
+from fastapi import FastAPI, Depends
+from sqlmodel import SQLModel, Session, create_engine, select
 from requests.exceptions import ConnectionError as RequestConnectionError
 from app.modelo import Tarefa
 
-APP = FastAPI()
-TAREFAS = []
+DATABASE_USERNAME = os.environ.get("DATABASE_USERNAME")
+DATABASE_PASSWORD = os.environ.get("DATABASE_PASSWORD")
+DATABASE_ADDRESS = os.environ.get("DATABASE_ADDRESS")
+DATABASE = os.environ.get("DATABASE")
 
+if DATABASE_USERNAME is None:
+    print("DATABASE_USERNAME está faltando")
+    exit(1)
+
+if DATABASE_PASSWORD is None:
+    print("DATABASE_PASSWORD está faltando")
+    exit(1)
+
+if DATABASE_ADDRESS is None:
+    print("DATABASE_ADDRESS está faltando")
+    exit(1)
+
+if DATABASE is None:
+    print("DATABASE está faltando")
+    exit(1)
+
+ENGINE = create_engine(f"mysql+pymysql://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_ADDRESS}:3306/{DATABASE}")
+
+def criar_sessao():
+    with Session(ENGINE) as s:
+        yield s
+
+SESSAO = Annotated[Session, Depends(criar_sessao)]
+async def inicializacao(api: FastAPI):
+    SQLModel.metadata.create_all(ENGINE)
+    yield
+
+APP = FastAPI(lifespan=inicializacao)
+TAREFAS = []
 
 # GET /tarefas: Lista todas as tarefas (somente id e titulo)
 @APP.get("/tarefas")
-async def tarefas():
+async def tarefas(sessao: SESSAO) -> List[Tarefa]:
     """Rota para listar as tarefas."""
-    lista_somente_id_titulo = []
 
-    for tarefa in TAREFAS:
-        lista_somente_id_titulo.append(tarefa.resumir())
+    lista_tarefas = sessao.exec(select(Tarefa).offset(0)).all()
 
-    return lista_somente_id_titulo
+    return lista_tarefas
 
 
 # POST /tarefas: Cria tarefa
 @APP.post("/tarefas", status_code=201)
-async def post_tarefa(titulo: str, descricao: str = None):
+async def post_tarefa(sessao: SESSAO, titulo: str, descricao: str = None):
     """Rota para criar uma tarefa."""
     tarefa_nova = Tarefa(
-        _id=len(TAREFAS),
         titulo=titulo,
         descricao=descricao,
-        data_criacao=datetime.now().isoformat(timespec="seconds"),
+        data_criacao=datetime.now().astimezone(timezone.utc),
     )
 
-    TAREFAS.append(tarefa_nova)
+    sessao.add(tarefa_nova)
+    sessao.commit()
+    sessao.refresh(tarefa_nova)
 
     return {"mensagem": "OK"}
 
 
 # GET /tarefas/{id_tarefa}: Visualizar tarefa específica
 @APP.get("/tarefas/{id_tarefa}")
-async def tarefa_especifica(id_tarefa: int):
+async def tarefa_especifica(sessao: SESSAO, id_tarefa: int) -> Tarefa:
     """Rota para visualizar uma tarefa específica"""
     # 1. Selecionar a tarefa de ID recebido como parâmetro
     # 2. Retornar todos os dados da tarefa
     # 3. Caso a tarefa não exista, você tem que mostrar que a tarefa não existe
 
-    for tarefa in TAREFAS:
-        if id_tarefa == tarefa.get_id():
-            return tarefa
+    regra = select(Tarefa).where(Tarefa.id == id_tarefa)
+    resultado = sessao.exec(regra).all()
 
+    if resultado:
+        return resultado[0]
+    
     return {"mensagem": "Tarefa não existe"}
 
 
 # PUT /tarefas/{id}: Atualiza tarefa específica
 @APP.put("/tarefas/{id_tarefa}")
-async def concluir_tarefa(id_tarefa: int):
+async def concluir_tarefa(sessao: SESSAO, id_tarefa: int):
     """Rota para concluir uma tarefa."""
     # 1. Selecionar a tarefa de ID recebido como parâmetro
     # 2. Marcar a tarefa como concluída
     # 3. Você deve armazenar o horário de conclusão da tarefa
     # 4. Caso a tarefa não exista, você tem que mostrar que a tarefa não existe
 
-    for tarefa in TAREFAS:
-        if id_tarefa == tarefa.get_id() and tarefa.concluida is False:
-            tarefa.finalizar()
-            titulo = tarefa.titulo
+    regra = select(Tarefa).where(Tarefa.id == id_tarefa and Tarefa.concluida is False)
+    resultado = sessao.exec(regra).all()
 
-            try:
-                _ = requests.post(
-                    f"http://localhost:8000/notificar?id={tarefa.get_id()}&titulo={titulo}",
-                    timeout=1,
-                )
-            except RequestConnectionError as e:
-                print(e)
+    if not resultado:
+        return {"mensagem": "Tarefa não existe"}
 
-            return {"mensagem": "Tarefa atualizada"}
+    if resultado[0].concluida is True:
+         return {"mensagem": "Tarefa já finalizada"}
 
-    return {"mensagem": "Tarefa não existe"}
 
+    resultado[0].finalizar()
+    sessao.add(resultado[0])
+    sessao.commit()
+    sessao.refresh(resultado[0])
+
+    return {"mensagem": "Tarefa atualizada"}
+
+    # try:
+    #     _ = requests.post(
+    #         f"http://localhost:8000/notificar?id={resultado.id}&titulo={resultado.titulo}",
+    #         timeout=1,
+    #     )
+    # except RequestConnectionError as e:
+    #     print(e)
 
 # DELETE /tarefas/{id_tarefa}: Exclui tarefa
 @APP.delete("/tarefas/{id_tarefa}")
-async def apagar_tarefa(id_tarefa: int):
+async def apagar_tarefa(sessao: SESSAO, id_tarefa: int):
     """Rota para apagar tarefa."""
     # 1. Selecionar a tarefa de ID recebido como parâmetro
     # 2. Remover tarefa da lista de tarefas
     # 3. Caso a tarefa não exista, você tem que mostrar que a tarefa não existe
 
-    indice = 0
-    for tarefa in TAREFAS:
-        if id_tarefa == tarefa.get_id():
-            TAREFAS.pop(indice)
-            return {"mensagem": "Tarefa apagada"}
+    regra = select(Tarefa).where(Tarefa.id == id_tarefa)
+    resultado = sessao.exec(regra).all()
 
-        indice += 1
+    if not resultado:
+        return {"mensagem": "Tarefa não existe"}
 
-    return {"mensagem": "Tarefa não existe"}
+    sessao.delete(resultado[0])
+    sessao.commit()
+
+    return {"mensagem": "Tarefa apagada"}
 
 
 @APP.get("/")
