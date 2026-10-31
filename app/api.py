@@ -4,7 +4,7 @@ from datetime import datetime
 from fastapi import FastAPI
 import requests
 from requests.exceptions import ConnectionError as RequestConnectionError
-from .modelo import Tarefa
+from app.modelo import Tarefa
 
 APP = FastAPI()
 TAREFAS = []
