@@ -34,7 +34,7 @@ if DATABASE is None:
 DATABASE_URL = (
     "postgresql+psycopg://"
     f"{DATABASE_USERNAME}:{DATABASE_PASSWORD}"
-    f"@{DATABASE_ADDRESS}:5406/{DATABASE}"
+    f"@{DATABASE_ADDRESS}:5432/{DATABASE}"
 )
 
 ENGINE = create_engine(DATABASE_URL)
