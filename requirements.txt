@@ -8,4 +8,4 @@ sqlmodel
 sqlalchemy
 pymysql
 ruff
-psycopg
+psycopg[binary]
