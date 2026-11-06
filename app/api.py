@@ -4,11 +4,29 @@ from datetime import datetime, timezone
 from typing import Annotated, List
 import os
 import sys
+import logging
 
 from fastapi import FastAPI, Depends
+from fastapi.responses import JSONResponse
 from sqlmodel import SQLModel, Session, create_engine, select
 
 from .modelo import Tarefa
+
+LOGGER = logging.getLogger("aplicacao")
+LOGGER.setLevel(logging.DEBUG)
+
+saida_padrao = logging.StreamHandler()
+arquivo = logging.FileHandler("aplicacao.log", encoding='utf-8')
+
+formatador = logging.Formatter(
+    "{name} | {levelname} | {asctime} | {filename}:{lineno} | {message}"
+)
+
+saida_padrao.setFormatter(formatador)
+arquivo.setFormatter(formatador)
+
+LOGGER.addHandler(saida_padrao)
+LOGGER.addHandler(arquivo)
 
 DATABASE_USERNAME = os.environ.get("DATABASE_USERNAME")
 DATABASE_PASSWORD = os.environ.get("DATABASE_PASSWORD")
@@ -16,19 +34,19 @@ DATABASE_ADDRESS = os.environ.get("DATABASE_ADDRESS")
 DATABASE = os.environ.get("DATABASE")
 
 if DATABASE_USERNAME is None:
-    print("DATABASE_USERNAME está faltando")
+    LOGGER.critical("DATABASE_USERNAME está faltando")
     sys.exit(1)
 
 if DATABASE_PASSWORD is None:
-    print("DATABASE_PASSWORD está faltando")
+    LOGGER.critical("DATABASE_PASSWORD está faltando")
     sys.exit(1)
 
 if DATABASE_ADDRESS is None:
-    print("DATABASE_ADDRESS está faltando")
+    LOGGER.critical("DATABASE_ADDRESS está faltando")
     sys.exit(1)
 
 if DATABASE is None:
-    print("DATABASE está faltando")
+    LOGGER.critical("DATABASE está faltando")
     sys.exit(1)
 
 DATABASE_URL = (
@@ -65,6 +83,8 @@ async def tarefas(sessao: SESSAO) -> List[Tarefa]:
 
     lista_tarefas = sessao.exec(select(Tarefa).offset(0)).all()
 
+    LOGGER.info("Usuário listou todas as tarefas")
+
     return lista_tarefas
 
 
@@ -83,6 +103,9 @@ async def post_tarefa(sessao: SESSAO, titulo: str, descricao: str = None):
     sessao.commit()
     sessao.refresh(tarefa_nova)
 
+    LOGGER.info("Usuário criou a tarefa {tarefa_nova.get_id()}")
+    LOGGER.debug(tarefa_nova)
+
     return {"mensagem": "OK"}
 
 
@@ -95,8 +118,10 @@ async def tarefa_especifica(sessao: SESSAO, id_tarefa: int) -> Tarefa:
     resultado = sessao.exec(regra).all()
 
     if resultado:
+        LOGGER.info("Usuário visualizou a tarefa específica {Tarefa.id}")
         return resultado[0]
 
+    LOGGER.info("Usuário tentou visualizar uma tarefa inexistente")
     return {"mensagem": "Tarefa não existe"}
 
 
@@ -113,9 +138,11 @@ async def concluir_tarefa(sessao: SESSAO, id_tarefa: int):
     resultado = sessao.exec(regra).all()
 
     if not resultado:
+        LOGGER.info("Usuário tentou concluir uma tarefa inexistente")
         return {"mensagem": "Tarefa não existe"}
 
     if resultado[0].concluida is True:
+        LOGGER.info("Usuário tentou concluir uma tarefa ja concluida")
         return {"mensagem": "Tarefa já finalizada"}
 
     resultado[0].finalizar()
@@ -123,6 +150,8 @@ async def concluir_tarefa(sessao: SESSAO, id_tarefa: int):
     sessao.add(resultado[0])
     sessao.commit()
     sessao.refresh(resultado[0])
+
+    LOGGER.info("Usuário atualizou uma tarefa")
 
     return {"mensagem": "Tarefa atualizada"}
 
@@ -136,6 +165,7 @@ async def apagar_tarefa(sessao: SESSAO, id_tarefa: int):
     resultado = sessao.exec(regra).all()
 
     if not resultado:
+        LOGGER.info("Usuário tentou excluir uma tarefa inexistente")
         return {"mensagem": "Tarefa não existe"}
 
     tarefa = resultado[0]
@@ -143,8 +173,15 @@ async def apagar_tarefa(sessao: SESSAO, id_tarefa: int):
     sessao.delete(tarefa)
     sessao.commit()
 
+    LOGGER.info("Usuário removeu uma tarefa")
+
     return {"mensagem": "Tarefa removida"}
 
+@APP.exception_handler(404)
+async def trata_404(_, __):
+    """Captura de acesso a rota inexistente."""
+    LOGGER.error("Página inexistente")
+    return JSONResponse({"mensagem": "Página inexistente"})
 
 @APP.get("/")
 async def index():

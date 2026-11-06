@@ -113,6 +113,11 @@ def test_tarefas_delete(cliente: TestClient):
 # 2. Criar um teste unitário para verificar se a rota
 # está produzindo o resultado esperado
 def test_autor(cliente: TestClient):
-    resposta = cliente.get("/autor")
+    resposta = cliente.get("/autor") 
     assert resposta.status_code == 200
     assert resposta.json() == {"mensagem": "Lucas Felipe"}
+
+def test_rota_inexiste(cliente: TestClient):
+    resposta = cliente.get("/rota_inexistente")
+    assert resposta.status_code == 200
+    assert resposta.json() == {"mensagem": "Página inexistente"}

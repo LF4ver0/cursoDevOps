@@ -54,3 +54,9 @@ jobs:
         with:
           push: true
           tags: ${{ vars.DOCKERHUB_USER }}/tarefas:2.0
+  deploy:
+    needs: [entrega, build]
+    runs-on: ubuntu-slim
+    steps:
+      - name: Deploy hook
+        run: curl -X GET ${{ secrets.RENDER_DEPLOY_HOOK }}
