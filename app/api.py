@@ -19,7 +19,7 @@ saida_padrao = logging.StreamHandler()
 arquivo = logging.FileHandler("aplicacao.log", encoding='utf-8')
 
 formatador = logging.Formatter(
-    "{name} | {levelname} | {asctime} | {filename}:{lineno} | {message}"
+    "%(name)s | %(levelname)s | %(asctime)s | %(filename)s:%(lineno)s | %(message)s"
 )
 
 saida_padrao.setFormatter(formatador)
