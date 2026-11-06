@@ -20,7 +20,7 @@ metadata:
     aplicacao: web
 spec:
   containers:
-    - image: nginx
+    - image: lf4ver0/tarefas:2.0
       name: web
       ports:
-        - containerPort: 80
+        - containerPort: 8000
